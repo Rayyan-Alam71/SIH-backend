@@ -49,7 +49,7 @@ app.post("/start", async (req, res) => {
             next_queston : llm_response.followup_question,
             isEmergency : llm_response.isEmergency ? true : false,
             isConversationEnded : llm_response.isConversationEnded ? true : false,
-            finalize : llm_response.finalResponse != "" ? llm_response.final_response : "",
+            finalize : llm_response.final_response != "" ? llm_response.final_response : "",
             clarification : llm_response.clarification_if_emergency != "" ? llm_response.clarification_if_emergency : ""
         }
         
