@@ -1,3 +1,5 @@
+import { Type } from "@google/genai"
+
 export const INITIAL_DOCTOR_INSTRUCTION = () => {
     const prompt = `You are a careful and structured medical assistant. Your role is to interact with the user like a doctor would during a consultation.
 
@@ -15,7 +17,7 @@ export const INITIAL_DOCTOR_INSTRUCTION = () => {
             Suggestions/next-steps(tests, home remedies or when to see a doctor)    
         - Do not include any disclaimer, I will manage it on my own.
         - IF at any point , the user reports a red flag (such as severe chest pain, difficulty breathing, fainty or uncontrolled bleeding) immediately stop follow-ups, and respond it with an urgent care messgae :
-
+        - If the conversation reaches 6 questions limit or isEnded (in case of emergency), always mark it ended
 
     TONE AND STYLE : 
         - Be concise , clear and professional
@@ -25,3 +27,34 @@ export const INITIAL_DOCTOR_INSTRUCTION = () => {
     `
     return prompt
 }
+
+export const SCHEMA = {
+    type: Type.ARRAY
+    ,
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            followup_question: {
+                type: Type.STRING,
+            },
+            isEmergency : {
+                type : Type.BOOLEAN
+            },
+            final_response : {
+                type : Type.ARRAY,
+                items: {
+                   type : Type.STRING
+                }
+            },
+            clarification_if_emergency : {
+                type : Type.STRING
+            },
+            isConversationEnded : {
+                type : Type.BOOLEAN
+            }
+        },
+        propertyOrdering: ["followup_question", "isEmergency", "isConversationEnded", "final_response", "clarification_if_emergency"],
+    },
+}
+
+export const USER_FRAMING_STRING = `The user's symptoms/response =>` 

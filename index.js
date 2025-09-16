@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { INITIAL_DOCTOR_INSTRUCTION } from "./prompt.js"
+import { INITIAL_DOCTOR_INSTRUCTION, SCHEMA, USER_FRAMING_STRING } from "./prompt.js"
 import * as dotenv from "dotenv"
 import { clearMessage, getMessage, saveMessage } from "./redis.js";
 // import  { createClient, REDIS_FLUSH_MODES } from "redis"
@@ -39,76 +39,34 @@ async function testingRedis(role, content){
 
 dotenv.config()
 
-const SCHEMA = {
-    type: Type.ARRAY,
-    items: {
-        type: Type.OBJECT,
-        properties: {
-            followup_question: {
-                type: Type.STRING,
-            },
-            isEmergency : {
-                type : Type.BOOLEAN
-            },
-            final_response : {
-                type : Type.ARRAY,
-                items: {
-                   type : Type.STRING
-                }
-            },
-            clarification_if_emergency : {
-                type : Type.STRING
-            }
-        },
-        propertyOrdering: ["followup_question", "isEmergency", "final_response", "clarification_if_emergency"],
-    },
-}
 
-let CHAT_HISTORY = []
+
 
 const ai = new GoogleGenAI({
     apiKey : process.env.GEMINI_API_KEY
 });
 
-async function main() {
+export async function callModel(sessionID, user_query, isContextToBeTaken){
+    let chatMessages ;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: CHAT_HISTORY.map((m)=>({
-        role : m.role,
-        parts : [{
-            text : m.content
-        }]
-    })),
-    config: {
-      systemInstruction: INITIAL_DOCTOR_INSTRUCTION(),
-      responseMimeType : "application/json",
-      responseSchema : SCHEMA
-    },
-  });
-  console.log(response)
-  console.log('='.repeat(20))
-  console.log(response.text);
-//   CHAT_HISTORY.push({
-//     role : "assitant",
-//     content : `${response.text}`
-//   })
-}
-
-// await main();
-
-export async function callModel(sessionID, user_query){
-
-    const chatMessages = await getMessage(sessionID)
-
+    if(isContextToBeTaken){
+        const history = await getMessage(sessionID)
+        chatMessages = history 
+    }
+    console.log(chatMessages)
     const chat = await ai.chats.create({
         model : "gemini-2.5-flash",
-        history : chatMessages.length > 0 ? chatMessages.map((m=>({
+        history : typeof(chatMessages) == "object" ? chatMessages.map((m=>({
             role : m.role,
             parts : [{
                 text : m.content
             }]
-        }))) : [],
+        }))) : [{
+            role : "user",
+            parts : [{
+                text : `${USER_FRAMING_STRING} ${user_query}`
+            }]
+        }],
         config: {
             systemInstruction: INITIAL_DOCTOR_INSTRUCTION(),
             responseMimeType : "application/json",
@@ -116,16 +74,14 @@ export async function callModel(sessionID, user_query){
         },
     })
     const response = await chat.sendMessage({
-        message : `The user is suffering from => ${String(user_query)}`
+        message : `${USER_FRAMING_STRING} ${String(user_query)}`
     })
-    await saveMessage(sessionID, "user", `${user_query}`)
     
     const parsedResponse = JSON.parse(response.text)
 
-    await saveMessage(sessionID, "model", parsedResponse[0].followup_question)
     console.log(parsedResponse)
 
-    return parsedResponse
+    return parsedResponse[0]
 
 }
 
