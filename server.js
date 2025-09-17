@@ -20,7 +20,7 @@ app.get("/", (req, res)=>{
 
 app.post("/start", async (req, res) => {
     // get the symptoms
-    const { symptoms } = req.body
+    const { symptoms} = req.body
     if(!symptoms || symptoms == ""){
         return res.status(403).json({
             msg : "error",
@@ -31,10 +31,11 @@ app.post("/start", async (req, res) => {
     // generate unique sessionId
     try {
         const session_id = uuid()
-
         // save the symptoms to the redis cache
         await saveMessage(session_id, "user", `${USER_FRAMING_STRING} ${String(symptoms)}`)
         
+        // save the user info and the conversation in the db
+
         // get the response from the model
         const llm_response = await callModel(session_id, symptoms, false)
 
@@ -111,6 +112,9 @@ app.post('/follow-up' , async (req, res) => {
         
         // save the response in the cache
         await saveMessage(session_id, "model", framed_output.next_queston)
+        
+        // update the user conversation in the db
+
         
         if(framed_output.isConversationEnded) await clearMessage(session_id)
         // return the output
